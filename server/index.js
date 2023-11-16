@@ -1,15 +1,17 @@
-// Peer Dependencies
 const Server = require("socket.io").Server;
 const createServer = require("http").createServer;
 const WebSocket = require("ws");
 // Enums
 const responseHandlerEnum = require("./providers/utils/XB/response-operations-handlers");
 const { disable } = require("express/lib/application");
-// Creating the server
+
+// Creating the HTTP server
 const httpServer = createServer();
+
+// Creating the Socket.IO server
 const io = new Server(httpServer, {
   cors: {
-    origin: "http://localhost:3000" ?? "https://betting-solutions-nextjs.vercel.app",
+    origin: "http://localhost:3000" || "https://betting-solutions-nextjs.vercel.app",
   },
 });
 
@@ -19,40 +21,38 @@ const handleOperation = (operationID, extraProperties) => {
     opt: operationID,
     lng: "en",
     ski: 132,
-    ...(extraProperties ?? {}),
+    ...(extraProperties || {}),
   });
   return JSON.stringify({
     opt: operationID,
     lng: "en",
     ski: 132,
-    ...(extraProperties ?? {}),
+    ...(extraProperties || {}),
   });
 };
 
+// Add error event listener for the HTTP server to catch any startup errors
+httpServer.on('error', (error) => {
+  console.error('Server error:', error);
+});
+
+// Handling Socket.IO connections
 io.on("connection", (socket) => {
   let isConnectionEstablished = false;
   const requestQueue = [];
-  // CACHES
-  // THIS WILL BE THE SELECTED SPORT CACHE THAT IS USED TO BUILD THE TEMPLATE OF THE EVENTS SUBMARKET
-  // <---------------->
 
-  // This is used as the template as we know that operation2 proceeds all other
-  // event-related operations, so we know for sure the template will be ready
-  let templateSubmarket;
-  // THIS IS THE SPORTS CACHE
-  let sportCache;
-  // UTILS
+  // Function to handle incoming requests
   const handleRequest = (request) => {
     if (isConnectionEstablished) {
       console.log("Handling request");
       const { type } = request;
       if (type === "get-construct") {
+        // Assuming 'provider' is defined elsewhere
         provider.send(handleOperation(7));
         provider.send(handleOperation(1));
         provider.send(handleOperation(5));
-      }
-      else if (type === 'get-sport'){
-        const {sportIDs} = request
+      } else if (type === 'get-sport') {
+        const { sportIDs } = request;
         provider.send(
           handleOperation(2, {
             evti: 0,
@@ -66,27 +66,25 @@ io.on("connection", (socket) => {
       requestQueue.push(request);
     }
   };
+
+  // Function to handle incoming messages
   const handleMessage = (message) => {
     const response = JSON.parse(message.toString());
-    // handling the operation ID and the resolving
     const operationID = Number(response.opt);
     console.log("Processing message with ID", operationID);
     const dataParser = responseHandlerEnum[operationID];
     const data = dataParser ? dataParser(response) : message;
 
-    //defining allowed IDs to avoid sending duplicated data
     const allowedOperationsIDs = [11, 12, 2];
     if (sportCache === undefined && operationID === 7) {
       sportCache = data;
     } else {
       if (operationID === 1) {
-        // this means we have all the necessary information to forward the sport menu
         const filteredSports = responseHandlerEnum.firstConstruct(
           sportCache,
           data
         );
         const firstRequestedSportIDs = Object.values(filteredSports)[0].genderedSportIDs;
-        // console.log("Sending Info for request 2 with sport IDs", firstRequestedSportIDs)
         provider.send(
           handleOperation(2, {
             evti: 0,
@@ -100,27 +98,16 @@ io.on("connection", (socket) => {
     }
     if (allowedOperationsIDs.includes(operationID)) {
       if (operationID === 11) {
-        // sports construct MUST be defined by now, so we can rerun the sports construct
-        // const sportsConstruct = responseHandlerEnum.firstConstruct(
-        //   sportCache,
-        //   data,
-        // );
-        // socket.emit("message", {
-        //   events: data,
-        //   sports: sportsConstruct,
-        //   type: ["events-update", "sports"],
-        // });
         socket.emit("message", {
           events: data,
           type: ["events-update"],
         });
-      } else if (operationID === 2){
+      } else if (operationID === 2) {
         templateSubmarket = data.template;
         socket.emit("message", {
           build: data,
           type: ["events-build"],
         });
-
       } else {
         const data = responseHandlerEnum[12](response, templateSubmarket, true)
         socket.emit("message", { events: data, type: ["odds-update"] });
@@ -128,23 +115,34 @@ io.on("connection", (socket) => {
     }
   };
 
+  // Creating a WebSocket connection to the external provider
   const provider = new WebSocket("wss://betlive.frtpcdn.com/ws");
+
+  // Event listener when the WebSocket connection is open
   provider.on("open", () => {
     isConnectionEstablished = true;
-    // handling queue if any
+
+    // Handling queue if any
     if (requestQueue.length > 0) {
       const requestAtHand = requestQueue.shift();
       handleRequest(requestAtHand);
     }
-    // sending all the necessary info for a user
+
+    // Sending all the necessary info for a user
     socket.emit("message", "Provider is open");
   });
+
+  // Event listener for incoming messages from the provider
   provider.on("message", handleMessage);
+
+  // Event listener for incoming messages from the socket
   socket.on("message", handleRequest);
 
+  // Emitting a 'ready' event to the client
   socket.emit("ready");
 });
 
+// Start listening on the specified port or the default port 8080
 httpServer.listen(process.env.PORT || 8080, () => {
-  console.log("Server is running on port 8000");
+  console.log(`Server is running on port ${process.env.PORT || 8080}`);
 });

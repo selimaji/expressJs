@@ -8,7 +8,7 @@ const responseHandlerEnum = require("./providers/utils/XB/response-operations-ha
 const httpServer = createServer();
 const io = new Server(httpServer, {
   cors: {
-    origin: "*",
+    origin: ["http://localhost:3000", "https://betting-solutions-nextjs.vercel.app/"],
   },
 });
 

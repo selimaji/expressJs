@@ -2,14 +2,14 @@
 const Server = require("socket.io").Server;
 const createServer = require("http").createServer;
 const WebSocket = require("ws");
-
 // Enums
-const responseHandlerEnum = require("./providers/utils/XB/response-operations-handlers");
+const responseHandlerEnum = require("./server/providers/utils/XB/response-operations-handlers");
+const { disable } = require("express/lib/application");
 // Creating the server
 const httpServer = createServer();
 const io = new Server(httpServer, {
   cors: {
-    origin: "*",
+    origin: "http://localhost:3000" ?? "https://betting-solutions-nextjs.vercel.app",
   },
 });
 
@@ -145,10 +145,6 @@ io.on("connection", (socket) => {
   socket.emit("ready");
 });
 
-httpServer.listen(8080, (err) => {
-  if (err) {
-    console.error("Error starting the server:", err);
-  } else {
-    console.log("Server is running on port 8000");
-  }
+httpServer.listen(process.env.PORT || 8888, () => {
+  console.log("Server is running on port 8888");
 });

@@ -9,7 +9,7 @@ const { disable } = require("express/lib/application");
 const httpServer = createServer();
 const io = new Server(httpServer, {
   cors: {
-    origin: "http://localhost:3000" ?? "https://betting-solutions-nextjs.vercel.app",
+    origin: "*",
   },
 });
 
@@ -145,6 +145,6 @@ io.on("connection", (socket) => {
   socket.emit("ready");
 });
 
-httpServer.listen(process.env.PORT || 8888, () => {
-  console.log("Server is running on port 8888");
+httpServer.listen(process.env.PORT || 8080, () => {
+  console.log("Server is running on port 8080");
 });

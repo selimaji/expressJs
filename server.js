@@ -3,8 +3,7 @@ const Server = require("socket.io").Server;
 const createServer = require("http").createServer;
 const WebSocket = require("ws");
 // Enums
-const responseHandlerEnum = require("./server/providers/utils/XB/response-operations-handlers");
-const { disable } = require("express/lib/application");
+const responseHandlerEnum = require("./providers/utils/XB/response-operations-handlers");
 // Creating the server
 const httpServer = createServer();
 const io = new Server(httpServer, {
